@@ -133,12 +133,11 @@ const START_HTML = `<!doctype html>
 
 // Turns whatever XToys sends into one flat object. URL query parameters
 // (e.g. ?ch=suction) are merged in, and the body wins on conflicts.
-async function parseCommand(request, url) {
+async function parseCommand(request, url, body) {
   const cmd = {};
   for (const [k, v] of url.searchParams) cmd[k] = v;
 
   if (request.method === "POST") {
-    const body = (await request.text()).slice(0, MAX_BODY).trim();
     if (body) {
       let parsed;
       try {
@@ -174,10 +173,30 @@ export class Relay extends DurableObject {
     }
 
     if (action === "status") {
-      return json({ ok: true, bridges: this.ctx.getWebSockets().length });
+      const now = Date.now();
+      const recent = ((await this.ctx.storage.get("recent")) || []).map((r) => ({
+        secondsAgo: Math.round((now - r.t) / 1000),
+        ...r,
+      }));
+      return json({ ok: true, bridges: this.ctx.getWebSockets().length, recent });
     }
 
-    const cmd = await parseCommand(request, url);
+    const body = request.method === "POST" ? (await request.text()).slice(0, MAX_BODY).trim() : "";
+    const cmd = await parseCommand(request, url, body);
+
+    // Keep the last few requests (with the raw body) so /status can show
+    // what XToys actually sent, even if the bridge page was asleep.
+    const recent = (await this.ctx.storage.get("recent")) || [];
+    recent.unshift({
+      t: Date.now(),
+      method: request.method,
+      contentType: request.headers.get("Content-Type") || "",
+      origin: request.headers.get("Origin") || "",
+      query: url.search,
+      body: body.slice(0, 500),
+    });
+    await this.ctx.storage.put("recent", recent.slice(0, 10));
+
     const msg = JSON.stringify({ type: "cmd", cmd, t: Date.now() });
     let sent = 0;
     for (const ws of this.ctx.getWebSockets()) {

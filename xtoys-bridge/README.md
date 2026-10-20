@@ -87,7 +87,7 @@ The toy should vibrate at 30%, then stop by itself after 10 seconds. That proves
 
 **If it doesn't react:** look at **Last message from XToys** on the bridge page.
 
-* It still says "(nothing yet)": the URL in XToys is wrong. Copy it again.
+* It still says "(nothing yet)": open your relay address ending in `/status`, for example `https://jveraxs-relay.YOURNAME.workers.dev/YOUR-SECRET-KEY/status`. Under `recent` it lists the last 10 messages the relay received, even ones that arrived while the bridge page was asleep. If XToys isn't listed there, the URL in XToys is wrong or XToys isn't sending: copy the URL again.
 * It shows a message but the toy doesn't move: the bridge didn't understand XToys's format. Send me that text and I'll adjust it. If the toy moves too weakly or too strongly, try changing **XToys number range** in Safety settings.
 
 ---
