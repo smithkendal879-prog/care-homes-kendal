@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>J-Veraxs Bridge</title>
+<style>
+  :root {
+    --bg: #111318;
+    --card: #1b1e25;
+    --line: #2c313b;
+    --text: #e9ecf1;
+    --muted: #9aa3b2;
+    --accent: #7c8cff;
+    --ok: #3ecf8e;
+    --warn: #f5b942;
+    --bad: #ff5a5f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 140px; }
+  h1 { font-size: 22px; margin: 4px 0 12px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--line); font-size: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 16px; background: var(--accent);
+    color: #fff; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #2a2f3a; color: var(--text); }
+  button:disabled { opacity: .5; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=number], select { width: 100%; font: inherit; padding: 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: #0d0f13; color: var(--text); }
+  input[type=range] { width: 100%; height: 36px; accent-color: var(--accent); }
+  .slider-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+  .slider-head b { font-size: 26px; font-variant-numeric: tabular-nums; }
+  .check { display: flex; gap: 10px; align-items: center; color: var(--text); margin-top: 12px; }
+  .check input { width: 22px; height: 22px; }
+  code, .mono { font-family: ui-monospace, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  .url { background: #0d0f13; border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 6px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .banner { padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; font-weight: 600; }
+  .banner.warn { background: #3a2c10; color: var(--warn); }
+  .banner.bad { background: #3a1416; color: var(--bad); }
+  #log { max-height: 220px; overflow: auto; white-space: pre-wrap; }
+  #raw { min-height: 1.5em; }
+  .stopbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, var(--bg) 30%); }
+  #stop { display: block; width: 100%; max-width: 560px; margin: 0 auto; padding: 24px; font-size: 30px;
+    letter-spacing: .1em; background: var(--bad); border-radius: 16px; box-shadow: 0 6px 24px rgba(255,90,95,.35); }
+  #stop:active { transform: scale(.98); }
+  .hidden { display: none !important; }
+</style>
+<script>/*RELAY_AUTOCONFIG*/</script>
+</head>
+<body>
+<main>
+  <h1>J-Veraxs Bridge</h1>
+
+  <div class="chips">
+    <span class="chip"><span class="dot" id="toyDot"></span><span id="toyStatus">Toy: not connected</span></span>
+    <span class="chip"><span class="dot" id="relayDot"></span><span id="relayStatus">XToys relay: off</span></span>
+  </div>
+
+  <div id="noBt" class="banner bad hidden">This browser has no Bluetooth support. Open this page in the <b>Bluefy</b> app.</div>
+  <div id="pausedBanner" class="banner warn hidden">
+    Stopped. XToys commands are being ignored.
+    <div style="margin-top:8px"><button id="resume" class="secondary">Let XToys control again</button></div>
+  </div>
+
+  <section class="card">
+    <h2>1. Toy</h2>
+    <div class="row">
+      <button id="connectToy">Connect toy</button>
+      <button id="disconnectToy" class="secondary hidden">Disconnect</button>
+    </div>
+    <p class="muted">Turn the toy on first. When the list appears, pick <b>J-Veraxs</b>.
+      <a href="#" id="showAll" style="color:var(--accent)">Toy not listed? Show all devices</a></p>
+  </section>
+
+  <section class="card">
+    <h2>2. Manual control</h2>
+    <div class="slider-head"><span>Vibration</span><b id="vibVal">0%</b></div>
+    <input type="range" id="vib" min="0" max="100" step="1" value="0">
+    <div class="slider-head"><span>Suction</span><b id="sucVal">0%</b></div>
+    <input type="range" id="suc" min="0" max="100" step="1" value="0">
+    <p class="muted" id="sourceInfo">Moving a slider takes over from XToys until XToys sends another command.</p>
+  </section>
+
+  <section class="card">
+    <h2>3. XToys remote control</h2>
+    <div id="relayConfig">
+      <label for="relayUrl">Relay address (with your secret key)</label>
+      <input type="text" id="relayUrl" placeholder="https://jveraxs-relay.NAME.workers.dev/YOUR-SECRET" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="relayOn">Connect to XToys relay</button>
+      <button id="relayOff" class="secondary hidden">Disconnect relay</button>
+    </div>
+
+    <div id="xtoysUrls" class="hidden">
+      <label>Paste this into the XToys HTTP Post Toy URL</label>
+      <div class="url mono" id="cmdUrl"></div>
+      <button class="secondary" data-copy="cmdUrl">Copy</button>
+      <p class="muted">Want a separate XToys toy just for suction? Use this address for it:</p>
+      <div class="url mono" id="sucUrl"></div>
+      <button class="secondary" data-copy="sucUrl">Copy</button>
+      <p class="muted">Quick test: open this in Safari. The toy should vibrate at 30%, then stop by itself after the safety timeout.</p>
+      <div class="url mono" id="testUrl"></div>
+    </div>
+
+    <label>Last message from XToys</label>
+    <div class="url mono" id="raw">(nothing yet)</div>
+  </section>
+
+  <section class="card">
+    <h2>Safety settings</h2>
+    <label for="watchdog">Stop if XToys sends nothing for (seconds)</label>
+    <input type="number" id="watchdog" min="3" max="300" step="1" value="10">
+    <label for="scale">XToys number range</label>
+    <select id="scale">
+      <option value="auto">Automatic (recommended)</option>
+      <option value="100">0 to 100</option>
+      <option value="255">0 to 255</option>
+      <option value="1">0 to 1</option>
+    </select>
+    <label class="check"><input type="checkbox" id="stopOnHide" checked> Stop when Bluefy goes to the background or the screen locks (recommended)</label>
+  </section>
+
+  <section class="card">
+    <h2>Activity log</h2>
+    <div id="log" class="mono muted"></div>
+  </section>
+</main>
+
+<div class="stopbar"><button id="stop">STOP</button></div>
+
+<script>
+"use strict";
+
+const SERVICE_UUID = "0000ffa0-0000-1000-8000-00805f9b34fb";
+const TOY_NAME = "J-Veraxs";
+const STOP_PACKET = new Uint8Array([0xA0, 0x03, 0x00, 0x00, 0x00, 0x00, 0xAA]);
+const KEEPALIVE_MS = 2000;   // re-send a running command this often
+const PING_MS = 4000;        // relay keep-alive ping
+const PONG_TIMEOUT_MS = 12000;
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- small helpers ----------
+function log(msg) {
+  const t = new Date().toLocaleTimeString();
+  const el = $("log");
+  el.textContent = `${t}  ${msg}\n` + el.textContent.slice(0, 6000);
+}
+function clamp(n, lo, hi) { return Math.min(hi, Math.max(lo, n)); }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function store(key, value) { try { localStorage.setItem(key, value); } catch {} }
+function load(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function setChip(dotId, textId, cls, text) {
+  $(dotId).className = "dot " + cls;
+  $(textId).textContent = text;
+}
+
+// ---------- toy (Web Bluetooth) ----------
+let device = null;
+let characteristic = null;
+const out = { vib: 0, suc: 0 };       // current output, 0-255 each
+let writing = false;
+let dirty = false;
+
+function packet(vib, suc) {
+  return new Uint8Array([0xA0, 0x03, vib, 0x00, suc, 0x00, 0xAA]);
+}
+
+async function writeRaw(bytes) {
+  const c = characteristic;
+  if (!c) return;
+  if (c.properties.write && c.writeValueWithResponse) await c.writeValueWithResponse(bytes);
+  else if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(bytes);
+  else await c.writeValue(bytes);
+}
+
+// Sends the latest wanted state; rapid changes collapse into one write.
+async function pump() {
+  if (writing || !characteristic) return;
+  writing = true;
+  try {
+    while (dirty && characteristic) {
+      dirty = false;
+      await writeRaw(packet(out.vib, out.suc));
+      await sleep(50);
+    }
+  } catch (e) {
+    log("Bluetooth write failed: " + e.message);
+  } finally {
+    writing = false;
+  }
+}
+
+function setOutput(vib, suc) {
+  out.vib = clamp(Math.round(vib), 0, 255);
+  out.suc = clamp(Math.round(suc), 0, 255);
+  $("vib").value = Math.round(out.vib / 2.55);
+  $("suc").value = Math.round(out.suc / 2.55);
+  $("vibVal").textContent = $("vib").value + "%";
+  $("sucVal").textContent = $("suc").value + "%";
+  dirty = true;
+  pump();
+}
+
+function stopToy(reason) {
+  const wasRunning = out.vib > 0 || out.suc > 0;
+  setOutput(0, 0);
+  if (wasRunning && reason) log("STOP: " + reason);
+}
+
+// Fire-and-forget stop for moments when we can't wait (page closing).
+function stopNow() {
+  out.vib = 0; out.suc = 0;
+  if (characteristic) writeRaw(STOP_PACKET).catch(() => {});
+}
+
+async function connectToy(showAll) {
+  if (!navigator.bluetooth) { $("noBt").classList.remove("hidden"); return; }
+  try {
+    const options = showAll
+      ? { acceptAllDevices: true, optionalServices: [SERVICE_UUID] }
+      : { filters: [{ name: TOY_NAME }, { namePrefix: TOY_NAME }], optionalServices: [SERVICE_UUID] };
+    device = await navigator.bluetooth.requestDevice(options);
+    device.addEventListener("gattserverdisconnected", onToyDisconnected);
+    setChip("toyDot", "toyStatus", "warn", "Toy: connecting…");
+    log("Connecting to " + (device.name || "device") + "…");
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    const chars = await service.getCharacteristics();
+    const writable = chars.filter((c) => c.properties.write || c.properties.writeWithoutResponse);
+    characteristic = writable.find((c) => c.uuid.toLowerCase().includes("ffa1")) || writable[0] || null;
+    if (!characteristic) throw new Error("No writable characteristic found in service FFA0");
+    log("Using characteristic " + characteristic.uuid);
+    await writeRaw(STOP_PACKET);
+    setOutput(0, 0);
+    setChip("toyDot", "toyStatus", "ok", "Toy: connected");
+    $("connectToy").classList.add("hidden");
+    $("disconnectToy").classList.remove("hidden");
+    requestWakeLock();
+  } catch (e) {
+    characteristic = null;
+    setChip("toyDot", "toyStatus", "bad", "Toy: not connected");
+    log("Toy connection failed: " + e.message);
+  }
+}
+
+function onToyDisconnected() {
+  characteristic = null;
+  writing = false;
+  setChip("toyDot", "toyStatus", "bad", "Toy: disconnected");
+  $("connectToy").classList.remove("hidden");
+  $("disconnectToy").classList.add("hidden");
+  log("Toy disconnected. Tap Connect toy to reconnect.");
+}
+
+async function disconnectToy() {
+  if (characteristic) { try { await writeRaw(STOP_PACKET); } catch {} }
+  if (device && device.gatt.connected) device.gatt.disconnect();
+}
+
+// Some toys stop on their own if they hear nothing, so keep repeating a running command.
+setInterval(() => {
+  if (characteristic && !writing && (out.vib > 0 || out.suc > 0)) { dirty = true; pump(); }
+}, KEEPALIVE_MS);
+
+// ---------- manual controls ----------
+let lastSource = "manual";   // "manual" or "remote"
+let remotePaused = false;
+
+function onSlider() {
+  lastSource = "manual";
+  setOutput($("vib").value * 2.55, $("suc").value * 2.55);
+}
+$("vib").addEventListener("input", onSlider);
+$("suc").addEventListener("input", onSlider);
+
+function setPaused(p) {
+  remotePaused = p;
+  $("pausedBanner").classList.toggle("hidden", !p);
+}
+
+$("stop").addEventListener("click", () => {
+  lastSource = "manual";
+  stopToy("STOP button");
+  setPaused(true);
+});
+$("resume").addEventListener("click", () => { setPaused(false); log("XToys control resumed"); });
+
+// ---------- understanding XToys messages ----------
+const VIB_KEYS = ["vibrate", "vibration", "vibe", "vib", "intensity", "value", "speed", "level", "strength", "power"];
+const SUC_KEYS = ["suction", "suck", "suc", "vibrate2", "intensity2", "value2"];
+
+function firstKey(obj, keys) {
+  for (const k of keys) if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") return obj[k];
+  return undefined;
+}
+
+function toByte(x) {
+  if (x === undefined) return null;
+  if (typeof x === "boolean") return x ? 255 : 0;
+  const n = parseFloat(x);
+  if (!isFinite(n)) return null;
+  let max = Number($("scale").value);
+  if (!max) max = n > 100 ? 255 : (n > 0 && n < 1 ? 1 : 100);
+  return clamp(Math.round((n / max) * 255), 0, 255);
+}
+
+// Returns {vib, suc} (0-255) with only the parts the message set.
+function interpret(raw) {
+  const c = {};
+  for (const k of Object.keys(raw || {})) c[k.toLowerCase()] = raw[k];
+  const word = String(c.command ?? c.action ?? c.value ?? "").toLowerCase();
+  if (c.stop !== undefined || word === "stop" || word === "off") return { vib: 0, suc: 0 };
+
+  let vib = firstKey(c, VIB_KEYS);
+  let suc = firstKey(c, SUC_KEYS);
+  if (Array.isArray(vib)) { if (suc === undefined) suc = vib[1]; vib = vib[0]; }
+
+  // Which motor a single value is for: XToys "channel" (1 = vibration, 2 = suction),
+  // or "?ch=suction" / "?ch=both" added to the URL.
+  const target = String(c.ch ?? c.target ?? "").toLowerCase();
+  if (vib !== undefined && suc === undefined) {
+    if (Number(c.channel) === 2 || ["2", "suc", "suck", "suction"].includes(target)) { suc = vib; vib = undefined; }
+    else if (["both", "all"].includes(target)) suc = vib;
+  }
+
+  const result = {};
+  const v = toByte(vib), s = toByte(suc);
+  if (v !== null) result.vib = v;
+  if (s !== null) result.suc = s;
+  return result;
+}
+
+let lastRemoteAt = 0;
+
+function onRemoteCommand(cmd) {
+  lastRemoteAt = Date.now();
+  $("raw").textContent = JSON.stringify(cmd);
+  if (remotePaused) return;
+  const r = interpret(cmd);
+  if (r.vib === undefined && r.suc === undefined) {
+    log("Got a message but couldn't find a value in it: " + JSON.stringify(cmd));
+    return;
+  }
+  lastSource = "remote";
+  setOutput(r.vib ?? out.vib, r.suc ?? out.suc);
+}
+
+// Safety timer: stop if XToys is driving the toy and goes quiet.
+setInterval(() => {
+  const limit = clamp(Number($("watchdog").value) || 10, 3, 300) * 1000;
+  if (lastSource === "remote" && (out.vib > 0 || out.suc > 0) && Date.now() - lastRemoteAt > limit) {
+    stopToy(`no XToys commands for ${limit / 1000} seconds`);
+  }
+}, 500);
+
+// ---------- relay connection ----------
+let ws = null;
+let relayWanted = false;
+let pingTimer = null;
+let reconnectTimer = null;
+let lastPong = 0;
+let backoff = 1000;
+
+function relayBase() {
+  if (window.SERVED_BY_RELAY) return location.origin + location.pathname.replace(/\/+$/, "");
+  return $("relayUrl").value.trim().replace(/\/+$/, "").replace(/\/(cmd|ws|status)$/, "");
+}
+
+function showXToysUrls() {
+  const base = relayBase();
+  if (!/^https?:\/\/.+\/.+/.test(base)) { $("xtoysUrls").classList.add("hidden"); return; }
+  $("cmdUrl").textContent = base + "/cmd";
+  $("sucUrl").textContent = base + "/cmd?ch=suction";
+  $("testUrl").textContent = base + "/cmd?vibrate=30";
+  $("xtoysUrls").classList.remove("hidden");
+}
+
+function relayLost(reason) {
+  clearInterval(pingTimer);
+  if (ws) { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; try { ws.close(); } catch {} ws = null; }
+  stopToy("lost connection to the XToys relay (" + reason + ")");
+  if (relayWanted) {
+    setChip("relayDot", "relayStatus", "warn", "XToys relay: reconnecting…");
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(openRelay, backoff);
+    backoff = Math.min(backoff * 2, 15000);
+  } else {
+    setChip("relayDot", "relayStatus", "", "XToys relay: off");
+  }
+}
+
+function openRelay() {
+  const base = relayBase();
+  if (!/^https?:\/\/.+\/.+/.test(base)) {
+    log("Enter the full relay address first, e.g. https://jveraxs-relay.NAME.workers.dev/YOUR-SECRET");
+    relayWanted = false;
+    updateRelayButtons();
+    return;
+  }
+  setChip("relayDot", "relayStatus", "warn", "XToys relay: connecting…");
+  ws = new WebSocket(base.replace(/^http/, "ws") + "/ws");
+  ws.onopen = () => {
+    backoff = 1000;
+    lastPong = Date.now();
+    setChip("relayDot", "relayStatus", "ok", "XToys relay: connected");
+    log("Connected to the XToys relay");
+    pingTimer = setInterval(() => {
+      if (Date.now() - lastPong > PONG_TIMEOUT_MS) return relayLost("no reply");
+      try { ws.send("ping"); } catch {}
+    }, PING_MS);
+  };
+  ws.onmessage = (e) => {
+    lastPong = Date.now();
+    if (e.data === "pong") return;
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "cmd") onRemoteCommand(msg.cmd);
+    } catch {}
+  };
+  ws.onclose = (e) => relayLost(e.code === 1006 ? "check the address and secret" : "closed");
+  ws.onerror = () => {};
+}
+
+function updateRelayButtons() {
+  $("relayOn").classList.toggle("hidden", relayWanted);
+  $("relayOff").classList.toggle("hidden", !relayWanted);
+}
+
+$("relayOn").addEventListener("click", () => {
+  store("relayUrl", $("relayUrl").value.trim());
+  relayWanted = true;
+  updateRelayButtons();
+  showXToysUrls();
+  openRelay();
+});
+$("relayOff").addEventListener("click", () => {
+  relayWanted = false;
+  clearTimeout(reconnectTimer);
+  updateRelayButtons();
+  relayLost("you disconnected");
+});
+$("relayUrl").addEventListener("input", showXToysUrls);
+
+// ---------- page lifecycle safety ----------
+window.addEventListener("pagehide", stopNow);
+window.addEventListener("beforeunload", stopNow);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && $("stopOnHide").checked) {
+    stopToy("Bluefy went to the background");
+    stopNow();
+  } else if (document.visibilityState === "visible") {
+    requestWakeLock();
+    if (relayWanted && !ws) openRelay();
+  }
+});
+
+// Keep the screen on while connected so iOS doesn't pause the page.
+let wakeLock = null;
+async function requestWakeLock() {
+  try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+}
+
+// ---------- setup ----------
+$("connectToy").addEventListener("click", () => connectToy(false));
+$("disconnectToy").addEventListener("click", disconnectToy);
+$("showAll").addEventListener("click", (e) => { e.preventDefault(); connectToy(true); });
+document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = "Copied"; }
+  catch { b.textContent = "Select and copy by hand"; }
+  setTimeout(() => { b.textContent = "Copy"; }, 1500);
+}));
+for (const id of ["watchdog", "scale"]) {
+  const saved = load(id);
+  if (saved) $(id).value = saved;
+  $(id).addEventListener("change", () => store(id, $(id).value));
+}
+if (!navigator.bluetooth) $("noBt").classList.remove("hidden");
+if (window.SERVED_BY_RELAY) {
+  $("relayConfig").classList.add("hidden");
+} else {
+  $("relayUrl").value = load("relayUrl") || "";
+}
+showXToysUrls();
+log("Ready");
+// Connecting to the relay never moves the toy, so do it straight away when we can.
+if (window.SERVED_BY_RELAY || load("relayUrl")) $("relayOn").click();
+</script>
+</body>
+</html>
