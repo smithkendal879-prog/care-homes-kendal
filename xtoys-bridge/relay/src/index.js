@@ -49,6 +49,12 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === "/") {
+      return new Response(START_HTML, {
+        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
+      });
+    }
+
     const parts = url.pathname.split("/");
     let key = "";
     try {
@@ -82,6 +88,48 @@ export default {
     return text("Not found", 404);
   },
 };
+
+// Start page at "/": type the key into a box instead of into the address bar
+// (some browsers, e.g. Bluefy, treat long pasted addresses as a search).
+// It reveals nothing; a wrong key just leads to "Not found".
+const START_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>J-Veraxs Bridge</title>
+<style>
+  body { margin: 0; background: #111318; color: #e9ecf1; font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 32px 16px; }
+  input, button { width: 100%; box-sizing: border-box; font: inherit; padding: 14px; border-radius: 12px; margin-top: 10px; }
+  input { border: 1px solid #2c313b; background: #0d0f13; color: #e9ecf1; }
+  button { border: 0; background: #7c8cff; color: #fff; font-weight: 600; }
+  label { display: flex; gap: 10px; align-items: center; margin-top: 14px; color: #9aa3b2; }
+  label input { width: 22px; height: 22px; margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>J-Veraxs Bridge</h1>
+  <form id="f">
+    <input id="key" type="password" placeholder="Your secret key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    <label><input type="checkbox" id="remember"> Remember the key on this phone</label>
+    <button>Open bridge</button>
+  </form>
+</main>
+<script>
+  const k = document.getElementById("key"), r = document.getElementById("remember");
+  try { const saved = localStorage.getItem("bridgeKey"); if (saved) { k.value = saved; r.checked = true; } } catch {}
+  document.getElementById("f").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const key = k.value.trim();
+    try { if (r.checked) localStorage.setItem("bridgeKey", key); else localStorage.removeItem("bridgeKey"); } catch {}
+    location.href = "/" + encodeURIComponent(key) + "/";
+  });
+</script>
+</body>
+</html>`;
 
 // Turns whatever XToys sends into one flat object. URL query parameters
 // (e.g. ?ch=suction) are merged in, and the body wins on conflicts.

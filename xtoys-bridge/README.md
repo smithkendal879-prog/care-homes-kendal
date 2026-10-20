@@ -58,9 +58,9 @@ The code is on the branch `claude/jveraxs-xtoys-bridge-nd77n3`. Cloudflare build
 ### Step 4: Open the bridge page in Bluefy
 
 1. In the Worker's overview, find its address. It looks like `https://jveraxs-relay.YOURNAME.workers.dev`.
-2. Add `/` + your key + `/` to the end:
-   `https://jveraxs-relay.YOURNAME.workers.dev/YOUR-SECRET-KEY/`
-3. Open that address in **Bluefy**, not Safari: Safari has no Bluetooth. Bookmark it.
+2. Open that short address in **Bluefy**, not Safari: Safari has no Bluetooth. A page with a key box appears.
+3. Paste your key into the box. Tick **Remember the key on this phone** if you like, then tap **Open bridge**. Bookmark the short address.
+   (You can also go straight to `https://jveraxs-relay.YOURNAME.workers.dev/YOUR-SECRET-KEY/`, but Bluefy sometimes treats long pasted addresses as a search.)
 4. After a moment, the chip at the top should say **XToys relay: connected**.
 5. Turn the toy on. Tap **Connect toy** and pick **J-Veraxs** from the list.
 6. Try the sliders. The toy should respond. Tap **STOP** to check that it stops.
