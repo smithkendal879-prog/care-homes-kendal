@@ -418,8 +418,14 @@ function openRelay() {
     lastPong = Date.now();
     setChip("relayDot", "relayStatus", "ok", "XToys relay: connected");
     log("Connected to the XToys relay");
+    let lastTick = Date.now();
     pingTimer = setInterval(() => {
-      if (Date.now() - lastPong > PONG_TIMEOUT_MS) return relayLost("no reply");
+      const now = Date.now();
+      // A late tick means the browser was slowing this page down (e.g. a background tab),
+      // not that the relay went quiet, so give the socket a fresh chance to answer.
+      if (now - lastTick > PING_MS * 2) lastPong = Math.max(lastPong, now - PING_MS);
+      lastTick = now;
+      if (now - lastPong > PONG_TIMEOUT_MS) return relayLost("no reply");
       try { ws.send("ping"); } catch {}
     }, PING_MS);
   };
@@ -474,6 +480,38 @@ async function requestWakeLock() {
   try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
 }
 
+// iOS slows down background tabs after about a minute, but not ones playing audio.
+// When background running is allowed, loop a silent sound to keep this tab awake.
+let keepAwakeAudio = null;
+function silentWavUrl() {
+  const rate = 8000, n = rate;
+  const v = new DataView(new ArrayBuffer(44 + n));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  str(36, "data"); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([v.buffer], { type: "audio/wav" }));
+}
+function updateKeepAwake() {
+  if (!$("stopOnHide").checked) {
+    if (!keepAwakeAudio) {
+      keepAwakeAudio = new Audio(silentWavUrl());
+      keepAwakeAudio.loop = true;
+      keepAwakeAudio.setAttribute("playsinline", "");
+    }
+    if (keepAwakeAudio.paused) {
+      keepAwakeAudio.play().then(() => log("Keeping this tab awake in the background (silent audio)")).catch(() => {});
+    }
+  } else if (keepAwakeAudio && !keepAwakeAudio.paused) {
+    keepAwakeAudio.pause();
+  }
+}
+// Browsers only start audio after a tap, so try on every tap.
+document.addEventListener("click", updateKeepAwake);
+document.addEventListener("touchend", updateKeepAwake);
+
 // ---------- setup ----------
 $("connectToy").addEventListener("click", () => connectToy(false));
 $("disconnectToy").addEventListener("click", disconnectToy);
@@ -489,7 +527,7 @@ for (const id of ["watchdog", "scale"]) {
   $(id).addEventListener("change", () => store(id, $(id).value));
 }
 if (load("stopOnHide") === "0") $("stopOnHide").checked = false;
-$("stopOnHide").addEventListener("change", () => store("stopOnHide", $("stopOnHide").checked ? "1" : "0"));
+$("stopOnHide").addEventListener("change", () => { store("stopOnHide", $("stopOnHide").checked ? "1" : "0"); updateKeepAwake(); });
 if (!navigator.bluetooth) $("noBt").classList.remove("hidden");
 if (window.SERVED_BY_RELAY) {
   $("relayConfig").classList.add("hidden");
