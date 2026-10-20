@@ -16,7 +16,7 @@ Everything sits behind a **secret key** in the address. Without the key, the rel
 * you tap STOP. XToys is then ignored until you tap "Let XToys control again".
 * the bridge loses its connection to the relay.
 * XToys sends nothing for 10 seconds while it is driving the toy. You can change this in *Safety settings*.
-* the page is closed, Bluefy goes to the background, or the screen locks.
+* the page is closed. If you tick *Stop when this tab is hidden* in Safety settings, it also stops when the tab is hidden. That setting is off by default, so XToys can run in a second Bluefy tab on the same phone.
 
 ---
 
@@ -76,6 +76,7 @@ The toy should vibrate at 30%, then stop by itself after 10 seconds. That proves
 4. Fill it in:
    * **Name:** J-Veraxs
    * **URL / address:** paste the address you copied
+   * **Message payload / Body:** copy it from the bridge page: `{"vibrate":<<vibrate>>,"channel":<<channel>>}`. XToys replaces `<<vibrate>>` and `<<channel>>` with the slider value and channel number.
    * **Format** (if asked): JSON
    * **Toy type:** **2 Channel Vibrator** if that option exists. Channel 1 is vibration and channel 2 is suction. If not, pick **Vibrator**.
    * **Number of intensity steps** (if asked): 100
@@ -94,7 +95,7 @@ The toy should vibrate at 30%, then stop by itself after 10 seconds. That proves
 
 ## Good to know
 
-* **Keep Bluefy open with the screen on.** iOS pauses background web pages, so the bridge stops the toy when you leave Bluefy or lock the screen. The page tries to keep the screen awake. Also set **Settings → Display & Brightness → Auto-Lock** to a long time while playing.
+* **Use XToys in a second Bluefy tab on the same phone, and keep Bluefy open with the screen on.** The bridge plays silent audio to stay awake in its background tab. If you leave Bluefy completely or lock the screen, iOS freezes the bridge, and the toy keeps its last level until you come back or switch it off. The page tries to keep the screen awake. Also set **Settings → Display & Brightness → Auto-Lock** to a long time while playing.
 * **The 10-second safety timer.** XToys may only send a message when a value *changes*. If you hold one steady level for more than 10 seconds, the toy stops: that's the safety timer working. Use a pattern in XToys, or raise the timer in **Safety settings**.
 * **The toy's own power button is the final stop.** If your phone's battery dies or Bluetooth drops, the toy may keep running at its last level, because nothing can reach it.
 * **To change your key,** change the `SECRET` value in Cloudflare (Step 3) and update your bookmark.

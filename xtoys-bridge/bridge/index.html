@@ -105,17 +105,27 @@
     </div>
 
     <div id="xtoysUrls" class="hidden">
-      <label>Paste this into the XToys HTTP Post Toy URL</label>
+      <p class="muted">Settings for the HTTP Post Toy in XToys. Tap Copy, then paste into XToys.</p>
+      <label>URL</label>
       <div class="url mono" id="cmdUrl"></div>
       <button class="secondary" data-copy="cmdUrl">Copy</button>
-      <p class="muted">Want a separate XToys toy just for suction? Use this address for it:</p>
-      <div class="url mono" id="sucUrl"></div>
-      <button class="secondary" data-copy="sucUrl">Copy</button>
-      <p class="muted">Quick test: open this in Safari. The toy should vibrate at 30%, then stop by itself after the safety timeout.</p>
-      <div class="url mono" id="testUrl"></div>
+      <label>Message payload (may be called Body or Message)</label>
+      <div class="url mono" id="payload">{"vibrate":&lt;&lt;vibrate&gt;&gt;,"channel":&lt;&lt;channel&gt;&gt;}</div>
+      <button class="secondary" data-copy="payload">Copy</button>
+      <p class="muted">Toy type: <b>2 Channel Vibrator</b> (channel 1 = vibration, channel 2 = suction). Intensity steps: 100.</p>
+      <details>
+        <summary class="muted">More addresses</summary>
+        <p class="muted">Separate XToys toy just for suction (same payload):</p>
+        <div class="url mono" id="sucUrl"></div>
+        <button class="secondary" data-copy="sucUrl">Copy</button>
+        <p class="muted">Quick test: open this in another tab. The toy should vibrate at 30%, then stop by itself after the safety timeout.</p>
+        <div class="url mono" id="testUrl"></div>
+      </details>
     </div>
 
-    <label>Last message from XToys</label>
+    <label>What XToys has sent (newest first)</label>
+    <div class="url mono" id="recent" style="white-space:pre-wrap">(nothing yet)</div>
+    <label>Last message that reached this page</label>
     <div class="url mono" id="raw">(nothing yet)</div>
   </section>
 
@@ -130,7 +140,7 @@
       <option value="255">0 to 255</option>
       <option value="1">0 to 1</option>
     </select>
-    <label class="check"><input type="checkbox" id="stopOnHide" checked> Stop when Bluefy goes to the background or the screen locks (recommended)</label>
+    <label class="check"><input type="checkbox" id="stopOnHide"> Stop when this tab is hidden. Leave this off if XToys runs in another Bluefy tab on this phone.</label>
   </section>
 
   <section class="card">
@@ -389,6 +399,26 @@ function showXToysUrls() {
   $("xtoysUrls").classList.remove("hidden");
 }
 
+// Ask the relay what it has received, so we can see XToys's messages even if
+// this tab was asleep when they arrived.
+function ago(sec) {
+  if (sec < 60) return sec + " s ago";
+  if (sec < 3600) return Math.round(sec / 60) + " min ago";
+  return Math.round(sec / 3600) + " h ago";
+}
+async function refreshRecent() {
+  const base = relayBase();
+  if (!/^https?:\/\/.+\/.+/.test(base) || document.visibilityState === "hidden") return;
+  try {
+    const data = await (await fetch(base + "/status", { cache: "no-store" })).json();
+    const items = data.recent || [];
+    $("recent").textContent = items.length
+      ? items.map((x) => `${ago(x.secondsAgo)}  ${x.body || x.query || "EMPTY: no numbers. Check the Message payload in XToys."}`).join("\n")
+      : "(nothing yet: XToys hasn't sent anything to this relay)";
+  } catch {}
+}
+setInterval(refreshRecent, 5000);
+
 function relayLost(reason) {
   clearInterval(pingTimer);
   if (ws) { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; try { ws.close(); } catch {} ws = null; }
@@ -470,6 +500,7 @@ document.addEventListener("visibilitychange", () => {
     stopNow();
   } else if (document.visibilityState === "visible") {
     requestWakeLock();
+    refreshRecent();
     if (relayWanted && !ws) openRelay();
   }
 });
@@ -526,7 +557,7 @@ for (const id of ["watchdog", "scale"]) {
   if (saved) $(id).value = saved;
   $(id).addEventListener("change", () => store(id, $(id).value));
 }
-if (load("stopOnHide") === "0") $("stopOnHide").checked = false;
+if (load("stopOnHide") === "1") $("stopOnHide").checked = true;
 $("stopOnHide").addEventListener("change", () => { store("stopOnHide", $("stopOnHide").checked ? "1" : "0"); updateKeepAwake(); });
 if (!navigator.bluetooth) $("noBt").classList.remove("hidden");
 if (window.SERVED_BY_RELAY) {
@@ -535,6 +566,7 @@ if (window.SERVED_BY_RELAY) {
   $("relayUrl").value = load("relayUrl") || "";
 }
 showXToysUrls();
+refreshRecent();
 log("Ready");
 // Connecting to the relay never moves the toy, so do it straight away when we can.
 if (window.SERVED_BY_RELAY || load("relayUrl")) $("relayOn").click();

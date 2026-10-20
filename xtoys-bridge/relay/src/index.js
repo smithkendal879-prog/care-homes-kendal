@@ -143,7 +143,9 @@ async function parseCommand(request, url, body) {
       try {
         parsed = JSON.parse(body);
       } catch {
-        parsed = body.includes("=") ? Object.fromEntries(new URLSearchParams(body)) : body;
+        const pair = body.match(/^(-?[\d.]+)\s*,\s*(\d+)$/);
+        if (pair) parsed = { vibrate: pair[1], channel: pair[2] }; // "<<vibrate>>,<<channel>>"
+        else parsed = body.includes("=") ? Object.fromEntries(new URLSearchParams(body)) : body;
       }
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) Object.assign(cmd, parsed);
       else cmd.value = parsed;
