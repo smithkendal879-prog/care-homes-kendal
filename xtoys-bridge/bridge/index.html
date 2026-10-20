@@ -488,6 +488,8 @@ for (const id of ["watchdog", "scale"]) {
   if (saved) $(id).value = saved;
   $(id).addEventListener("change", () => store(id, $(id).value));
 }
+if (load("stopOnHide") === "0") $("stopOnHide").checked = false;
+$("stopOnHide").addEventListener("change", () => store("stopOnHide", $("stopOnHide").checked ? "1" : "0"));
 if (!navigator.bluetooth) $("noBt").classList.remove("hidden");
 if (window.SERVED_BY_RELAY) {
   $("relayConfig").classList.add("hidden");
